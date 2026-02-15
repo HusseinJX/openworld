@@ -15,16 +15,14 @@
 	{
 		"imports": {
 			"three": "https://unpkg.com/three@0.157.0/build/three.module.js",
-			"three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/",
-			"@lumaai/luma-web": "https://unpkg.com/@lumaai/luma-web@0.2.0/dist/library/luma-web.module.js"
+			"three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
 		}
 	}
 	</script>
 	<script type="module">
-		import { WebGLRenderer, PerspectiveCamera, Scene, Vector3 } from 'three';
+		import { WebGLRenderer, PerspectiveCamera, Scene, Vector3, Box3, AmbientLight, DirectionalLight } from 'three';
 		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-		import { LumaSplatsThree } from '@lumaai/luma-web';
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 		let renderer = new WebGLRenderer({ antialias: false });
 
@@ -67,10 +65,29 @@
 
 		let scene = new Scene();
 
-		let splat = new LumaSplatsThree({
-			source: 'https://lumalabs.ai/capture/89e85006-92a7-44f3-808c-eb4f766885ce?mode=sparkles'
+		// Brighter lighting so GLB is clearly visible
+		scene.add(new AmbientLight(0xffffff, 1.2));
+		const dirLight = new DirectionalLight(0xffffff, 1.2);
+		dirLight.position.set(5, 10, 7);
+		scene.add(dirLight);
+		const fillLight = new DirectionalLight(0xffffff, 0.5);
+		fillLight.position.set(-5, 5, -5);
+		scene.add(fillLight);
+
+		// Load local scan (e.g. from Polycam)
+		const gltfLoader = new GLTFLoader();
+		gltfLoader.load('scan.glb', (gltf) => {
+			scene.add(gltf.scene);
+			// Start camera in center of scene (you're inside the scan)
+			const box = new Box3().setFromObject(gltf.scene);
+			const center = new Vector3();
+			box.getCenter(center);
+			// Eye height above floor: center of bounding box, slightly up
+			const eyeHeight = box.max.y - box.min.y > 2 ? 1.6 : 0;
+			camera.position.set(center.x, center.y + eyeHeight, center.z);
+			controls.target.set(center.x, center.y + eyeHeight, center.z + 1);
+			controls.update();
 		});
-		scene.add(splat);
 
 		function frameLoop(time) {
 			let canvas = renderer.domElement;
